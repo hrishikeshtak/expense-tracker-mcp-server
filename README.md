@@ -1,23 +1,32 @@
 # Expense Tracker MCP Server
 
-An **MCP (Model Context Protocol) server for tracking daily expenses**. It allows an MCP-compatible client such as Claude Desktop to interact with an expense tracker through natural language.
+An **MCP (Model Context Protocol) server for tracking daily expenses**.
+
+The server provides MCP tools that allow an MCP-compatible client, such as Claude Desktop, to add and retrieve expenses using natural language.
+
+The application currently uses **SQLite3** as its local persistence layer.
+
+---
 
 ## Features
 
-* Track daily expenses
-* Add and manage expense records
-* Query expenses through natural language
-* Integrate with MCP-compatible clients
-* Run and test the server locally using FastMCP Inspector
+* Add daily expenses
+* List all recorded expenses
+* Categorize expenses using categories and sub-categories
+* Add optional notes to expenses
+* Persist expense data using SQLite3
+* Test MCP tools using FastMCP Inspector
 * Integrate with Claude Desktop
+
+---
 
 ## Prerequisites
 
 Make sure the following tools are installed:
 
-* [Python](https://www.python.org/)
+* Python 3.12+
 * [uv](https://docs.astral.sh/uv/)
-* [Node.js](https://nodejs.org/)
+* Node.js
 * FastMCP
 
 ### Install Node.js
@@ -28,11 +37,11 @@ On macOS:
 brew install node
 ```
 
+---
+
 ## Project Setup
 
 ### 1. Initialize the project
-
-Create and initialize the Python project using `uv`:
 
 ```bash
 uv init
@@ -50,7 +59,7 @@ Activate the virtual environment if required:
 source .venv/bin/activate
 ```
 
-Install the project dependencies as needed.
+---
 
 ## Running the MCP Server
 
@@ -58,23 +67,249 @@ The MCP server is implemented in `main.py`.
 
 ### Run with FastMCP Inspector
 
-The FastMCP Inspector provides a UI for testing and debugging the MCP server and its tools.
+FastMCP Inspector can be used to interactively test and debug the available MCP tools.
 
 ```bash
 uv run fastmcp dev inspector main.py
 ```
 
-This allows you to interactively inspect the available MCP tools and test requests.
-
 ### Run the MCP Server
-
-To run the MCP server directly:
 
 ```bash
 uv run fastmcp run main.py
 ```
 
-## Claude Desktop Integration
+---
+
+# Database
+
+The Expense Tracker MCP Server currently uses **SQLite3** as its persistence layer.
+
+SQLite is a good fit for the current application because the expense tracker is designed as a lightweight, local application and does not require a separate database server.
+
+
+The database is automatically initialized when the MCP server starts.
+
+
+## Expense Schema
+
+The `expenses` table currently contains the following fields:
+
+| Field          | Type    | Description                              | Required |
+| -------------- | ------- | ---------------------------------------- | -------- |
+| `id`           | INTEGER | Auto-generated unique expense ID         | Yes      |
+| `date`         | TEXT    | Date of the expense                      | Yes      |
+| `amount`       | REAL    | Expense amount                           | Yes      |
+| `category`     | TEXT    | Main expense category                    | Yes      |
+| `sub_category` | TEXT    | Expense sub-category                     | No       |
+| `notes`        | TEXT    | Additional information about the expense | No       |
+
+### Example Record
+
+```text
+id:           1
+date:         2026-09-08
+amount:       500.00
+category:     Food
+sub_category: Dinner
+notes:        Dinner with family
+```
+
+---
+
+# MCP Tools
+
+The Expense Tracker MCP Server currently exposes the following MCP tools:
+
+| Tool            | Description                               |
+| --------------- | ----------------------------------------- |
+| `add_expense`   | Adds a new expense to the SQLite database |
+| `list_expenses` | Retrieves all expenses from the database  |
+
+---
+
+## `add_expense`
+
+Adds a new expense to the `expenses` table.
+
+
+### Example
+
+A user can interact with the MCP server using natural language:
+
+```text
+Add an expense of ₹500 for dinner today.
+```
+
+The MCP client can invoke:
+
+```python
+add_expense(
+    date="2026-09-08",
+    amount=500,
+    category="Food",
+    sub_category="Dinner",
+    notes=""
+)
+```
+
+### Response
+
+A successful request returns:
+
+```json
+{
+    "status": "ok",
+    "id": 1,
+    "message": "Expense added successfully"
+}
+```
+
+If an error occurs:
+
+```json
+{
+    "status": "error",
+    "message": "error message",
+    "id": null
+}
+```
+
+---
+
+## `list_expenses`
+
+Retrieves all expenses stored in the SQLite database.
+
+The expenses are returned in ascending order of their database ID.
+
+### Example
+
+User request:
+
+```text
+Show me all my expenses.
+```
+
+The MCP client invokes:
+
+```python
+list_expenses()
+```
+
+### Response
+
+Example:
+
+```json
+[
+    {
+        "id": 1,
+        "date": "2026-09-08",
+        "amount": 500.0,
+        "category": "Food",
+        "sub_category": "Dinner",
+        "notes": "Dinner with family"
+    },
+    {
+        "id": 2,
+        "date": "2026-09-08",
+        "amount": 120.0,
+        "category": "Transport",
+        "sub_category": "Cab",
+        "notes": ""
+    }
+]
+```
+
+---
+
+# MCP Architecture
+
+The current architecture is intentionally simple:
+
+```text
+┌─────────────────────┐
+│     MCP Client      │
+│  Claude / Inspector │
+└──────────┬──────────┘
+           │
+           │ MCP
+           ▼
+┌─────────────────────┐
+│   FastMCP Server    │
+│      main.py        │
+├─────────────────────┤
+│     MCP Tools       │
+│                     │
+│  add_expense()      │
+│  list_expenses()    │
+└──────────┬──────────┘
+           │
+           │ SQL
+           ▼
+┌─────────────────────┐
+│      SQLite3        │
+│                     │
+│    expense.db       │
+│                     │
+│    expenses table   │
+└─────────────────────┘
+```
+
+### Request Flow
+
+For example, when a user asks:
+
+```text
+Add ₹250 for lunch today.
+```
+
+The flow is:
+
+```text
+User
+  │
+  ▼
+MCP Client
+  │
+  ▼
+add_expense()
+  │
+  ▼
+SQLite
+  │
+  ▼
+expense.db
+```
+
+For retrieving expenses:
+
+```text
+User
+  │
+  ▼
+MCP Client
+  │
+  ▼
+list_expenses()
+  │
+  ▼
+SQLite
+  │
+  ▼
+Expense Records
+  │
+  ▼
+MCP Client
+  │
+  ▼
+User
+```
+
+---
+
+# Claude Desktop Integration
 
 FastMCP provides a convenient way to install the MCP server into Claude Desktop.
 
@@ -88,57 +323,58 @@ After installation:
 
 1. Open Claude Desktop.
 2. Restart Claude Desktop if required.
-3. Verify that the **Expense Tracker MCP Server** is available.
-4. You can now interact with the expense tracker using natural language.
+3. Verify that the **Expense Tracker** MCP server is available.
+4. Start interacting with your expense tracker using natural language.
 
-For example:
-
-```text
-Add an expense of ₹500 for groceries.
-```
-
-or:
+### Example Conversations
 
 ```text
-What did I spend on food this month?
+Add ₹500 for dinner today.
 ```
-
-## Project Structure
 
 ```text
-expense-tracker-mcp-server/
-│
-├── main.py              # MCP server entry point
-├── pyproject.toml       # Project configuration and dependencies
-├── uv.lock              # Locked dependencies
-├── .venv/               # Virtual environment
-└── README.md            # Project documentation
+Add ₹120 for Uber under Transport.
 ```
 
-## Development Workflow
+```text
+Show me all my expenses.
+```
+
+---
+
+# Development Workflow
 
 A typical development workflow is:
 
 ```text
-Create / Update MCP Tool
-        │
-        ▼
-Run FastMCP Inspector
-        │
-        ▼
-Test MCP Tools
-        │
-        ▼
-Run MCP Server
-        │
-        ▼
-Install in Claude Desktop
-        │
-        ▼
-Test using Natural Language
+        ┌──────────────────┐
+        │  Develop MCP Tool │
+        └────────┬─────────┘
+                 │
+                 ▼
+        ┌──────────────────┐
+        │ FastMCP Inspector │
+        └────────┬─────────┘
+                 │
+                 ▼
+        ┌──────────────────┐
+        │    Test Tools    │
+        └────────┬─────────┘
+                 │
+                 ▼
+        ┌──────────────────┐
+        │ Run MCP Server   │
+        └────────┬─────────┘
+                 │
+                 ▼
+        ┌──────────────────┐
+        │  Claude Desktop  │
+        └──────────────────┘
 ```
 
-## Useful Commands
+---
+
+# Useful Commands
 
 | Purpose                    | Command                                         |
 | -------------------------- | ----------------------------------------------- |
@@ -149,46 +385,21 @@ Test using Natural Language
 | Run MCP server             | `uv run fastmcp run main.py`                    |
 | Install in Claude Desktop  | `uv run fastmcp install claude-desktop main.py` |
 
-## Troubleshooting
+---
 
-### FastMCP command not found
+# Future Enhancements
 
-Use `uv run` so that the command runs in the project's managed environment:
+The current implementation provides basic expense creation and retrieval. Potential future MCP tools include:
 
-```bash
-uv run fastmcp run main.py
-```
+* `update_expense` — Update an existing expense
+* `delete_expense` — Delete an expense
+* `get_expense` — Retrieve a specific expense
+* `search_expenses` — Search expenses by keyword
+* `get_expenses_by_date` — Filter expenses by date
+* `get_expenses_by_category` — Filter expenses by category
+* `get_expense_summary` — Calculate spending summaries
+* `get_monthly_report` — Generate monthly expense reports
+* `get_category_summary` — Analyze spending by category
+* Budget tracking and alerts
 
-### Claude Desktop does not show the server
-
-Try reinstalling the MCP server:
-
-```bash
-uv run fastmcp install claude-desktop main.py
-```
-
-Then restart Claude Desktop.
-
-### Inspector is not working
-
-Make sure Node.js is installed:
-
-```bash
-node --version
-```
-
-If it is not installed:
-
-```bash
-brew install node
-```
-
-Then run:
-
-```bash
-uv run fastmcp dev inspector main.py
-```
-
-## License
-
-Add your project's license information here.
+As the application grows beyond a local/single-user use case, SQLite could potentially be replaced with a server-based database such as PostgreSQL.
