@@ -63,20 +63,22 @@ source .venv/bin/activate
 
 ## Running the MCP Server
 
-The MCP server is implemented in `main.py`.
+The MCP server is implemented in:
+
+src/expense_tracker/server.py
 
 ### Run with FastMCP Inspector
 
 FastMCP Inspector can be used to interactively test and debug the available MCP tools.
 
 ```bash
-uv run fastmcp dev inspector main.py
+uv run fastmcp dev inspector src/expense_tracker/server.py
 ```
 
 ### Run the MCP Server
 
 ```bash
-uv run fastmcp run main.py
+uv run fastmcp run src/expense_tracker/server.py
 ```
 
 ---
@@ -311,20 +313,84 @@ User
 
 # Claude Desktop Integration
 
+The MCP server can be integrated with Claude Desktop.
+
+## Option 1: Install using FastMCP
+
 FastMCP provides a convenient way to install the MCP server into Claude Desktop.
 
 Run:
 
 ```bash
-uv run fastmcp install claude-desktop main.py
+uv run fastmcp install claude-desktop src/expense_tracker/server.py
 ```
 
-After installation:
+However, when using a Python project with a src/ layout, Claude Desktop may not automatically resolve the expense_tracker package correctly.
 
-1. Open Claude Desktop.
-2. Restart Claude Desktop if required.
-3. Verify that the **Expense Tracker** MCP server is available.
-4. Start interacting with your expense tracker using natural language.
+In that case, configure Claude Desktop to launch the server through uv.
+
+## Option 2: Configure Claude Desktop using uv
+
+Open the Claude Desktop MCP configuration file:
+
+~/Library/Application Support/Claude/claude_desktop_config.json
+
+Add the following configuration under mcpServers:
+
+```
+{
+  "mcpServers": {
+    "Expense Tracker": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/hrishikeshtak/Developer/Git/mcp_servers/expense-tracker-mcp-server",
+        "fastmcp",
+        "run",
+        "src/expense_tracker/server.py"
+      ],
+      "env": {},
+      "transport": "stdio",
+      "type": null,
+      "cwd": null,
+      "timeout": null,
+      "keep_alive": null,
+      "description": null,
+      "icon": null,
+      "authentication": null
+    }
+  }
+```
+
+### Important
+
+Update:
+
+/Users/hrishikeshtak/Developer/Git/mcp_servers/expense-tracker-mcp-server
+
+to the absolute path of your local project directory.
+
+The --directory option is important because it tells uv which project to run from. This allows uv to correctly resolve the project's virtual environment, dependencies, and src/expense_tracker package.
+
+## Restart Claude Desktop
+
+After updating the configuration:
+
+1. Save claude_desktop_config.json.
+2. Completely quit Claude Desktop.
+3. Start Claude Desktop again.
+4. Open the MCP/Connectors section.
+5. Verify that Expense Tracker is running.
+6. Verify that the available tools are displayed.
+
+You should see:
+
+Expense Tracker     
+├── add_expense   
+└── list_expenses
+
+You can then interact with the server using natural language.
 
 ### Example Conversations
 

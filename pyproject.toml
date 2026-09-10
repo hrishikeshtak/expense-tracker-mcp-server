@@ -9,6 +9,9 @@ dependencies = [
     "fastmcp>=3.4.7",
 ]
 
+[project.scripts]
+expense-tracker = "expense_tracker.server:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
